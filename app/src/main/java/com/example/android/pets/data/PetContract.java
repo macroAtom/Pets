@@ -79,7 +79,7 @@ public final class PetContract {
          *
          * Type: INTEGER
          */
-        public static final String COLUMN_PET_MEASUREMENT = "measurement";
+        public static final String COLUMN_PET_WEIGHT = "weight";
 
         /**
          * 创建性别常量
