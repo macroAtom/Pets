@@ -15,10 +15,14 @@
  */
 package com.example.android.pets;
 
+import android.content.ContentValues;
+import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 //import android.support.v4.app.NavUtils;
 //import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -26,28 +30,47 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NavUtils;
 
 import com.example.android.pets.data.PetContract;
 import com.example.android.pets.data.PetContract.PetEntry;
+import com.example.android.pets.data.PetDbHelper;
 
 /**
  * Allows user to create a new pet or edit an existing one.
  */
 public class EditorActivity extends AppCompatActivity {
 
-    /** EditText field to enter the pet's name */
+    // 获取类名称
+    public static final String LOG_TAG = EditorActivity.class.getSimpleName();
+
+
+    /**
+     * Database helper that will provide us access to the database
+     */
+    private PetDbHelper mDbHelper;
+
+    /**
+     * EditText field to enter the pet's name
+     */
     private EditText mNameEditText;
 
-    /** EditText field to enter the pet's breed */
+    /**
+     * EditText field to enter the pet's breed
+     */
     private EditText mBreedEditText;
 
-    /** EditText field to enter the pet's weight */
+    /**
+     * EditText field to enter the pet's weight
+     */
     private EditText mWeightEditText;
 
-    /** EditText field to enter the pet's gender */
+    /**
+     * EditText field to enter the pet's gender
+     */
     private Spinner mGenderSpinner;
 
     /**
@@ -67,6 +90,7 @@ public class EditorActivity extends AppCompatActivity {
         mWeightEditText = (EditText) findViewById(R.id.edit_pet_weight);
         mGenderSpinner = (Spinner) findViewById(R.id.spinner_gender);
 
+        mDbHelper = new PetDbHelper(this);
         setupSpinner();
     }
 
@@ -109,6 +133,50 @@ public class EditorActivity extends AppCompatActivity {
         });
     }
 
+
+    /**
+     * 获取edittext 并插入数据库
+     */
+
+    private void insertPet() {
+
+        // Read from input fields
+        // Use trim to eliminate leading or trailing white space
+        String nameString = mNameEditText.getText().toString().trim();
+        String breedString = mBreedEditText.getText().toString().trim();
+        String weightString = mWeightEditText.getText().toString().trim();
+        int weight = Integer.parseInt(weightString);
+        Log.i(LOG_TAG, "insertPet: "+weight);
+
+        // Create database helper
+        PetDbHelper mDbHelper = new PetDbHelper(this);
+
+        // Gets the database in write mode
+        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+
+        // Create a ContentValues object where column names are the keys,
+        // and pet attributes from the editor are the values.
+        ContentValues values = new ContentValues();
+        values.put(PetEntry.COLUMN_PET_NAME, nameString);
+        values.put(PetEntry.COLUMN_PET_BREED, breedString);
+        values.put(PetEntry.COLUMN_PET_GENDER, mGender);
+        values.put(PetEntry.COLUMN_PET_WEIGHT, weight);
+
+        // Insert a new row for pet in the database, returning the ID of that new row.
+        long newRowId = db.insert(PetEntry.TABLE_NAME, null, values);
+
+        // Show a toast message depending on whether or not the insertion was successful
+        if (newRowId == -1) {
+            // If the row ID is -1, then there was an error with insertion.
+            Toast.makeText(this, "Error with saving pet", Toast.LENGTH_SHORT).show();
+        } else {
+            // Otherwise, the insertion was successful and we can display a toast with the row ID.
+            Toast.makeText(this, "Pet saved with row id: " + newRowId, Toast.LENGTH_SHORT).show();
+        }
+
+    }
+
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu options from the res/menu/menu_editor.xml file.
@@ -124,6 +192,13 @@ public class EditorActivity extends AppCompatActivity {
             // Respond to a click on the "Save" menu option
             case R.id.action_save:
                 // Do nothing for now
+                insertPet();
+
+                // Navigate back to parent activity (CatalogActivity)
+                /**
+                 * 这里意味着关闭编辑器，并返回到主页面
+                 */
+                finish();
                 return true;
             // Respond to a click on the "Delete" menu option
             case R.id.action_delete:
