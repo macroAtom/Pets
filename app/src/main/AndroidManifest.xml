@@ -38,6 +38,15 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".CatalogActivity" />
         </activity>
+
+<!--        第一个属性andoid:name 是此Provider的java 类的名称-->
+<!--        第二个是content 的主机名-->
+<!--        android:exported 指定是否对其他应用可见-->
+        <provider
+            android:name=".data.PetProvider"
+            android:authorities="com.example.android.pets"
+            android:exported="false"
+            />
     </application>
 
 </manifest>
