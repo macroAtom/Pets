@@ -19,6 +19,7 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
 import android.os.Bundle;
 //import android.support.design.widget.FloatingActionButton;
 //import android.support.v7.app.AppCompatActivity;
@@ -32,12 +33,16 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.android.pets.data.PetContract.PetEntry;
 import com.example.android.pets.data.PetDbHelper;
+import com.example.android.pets.data.PetProvider;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import java.net.URI;
 
 /**
  * Displays list of pets that were entered and stored in the app.
  */
 public class CatalogActivity extends AppCompatActivity {
+
 
     // 获取类名称
     public static final String LOG_TAG = CatalogActivity.class.getSimpleName();
@@ -74,6 +79,17 @@ public class CatalogActivity extends AppCompatActivity {
 
         mDbHelper = new PetDbHelper(this);
 
+        /**
+         * 创建Provider的实例
+         */
+
+//        PetProvider petProvider = new PetProvider();
+//        Uri CONTENT_URI = Uri.parse("content://com.example.android.pets/pets");
+
+//        String queryUri = PetEntry.CONTENT_URI.toString();
+//        Cursor cursor = getContentResolver().query(Uri.parse(queryUri), null, null, null, null);
+//        Log.i(LOG_TAG, "onCreate: " + cursor);
+
     }
 
     /**
@@ -94,12 +110,16 @@ public class CatalogActivity extends AppCompatActivity {
     private void displayDatabaseInfo() {
 
         // Create and/or open a database to read from it
-        SQLiteDatabase db = mDbHelper.getReadableDatabase();
+//        SQLiteDatabase db = mDbHelper.getReadableDatabase();
 
         // Perform this raw SQL query "SELECT * FROM pets"
         // to get a Cursor that contains all rows from the pets table.
 //        Cursor cursor = db.rawQuery("SELECT * FROM " + PetEntry.TABLE_NAME, null);
 
+        /**
+         * Define a projection that specifies which columns from the database
+         * you will actually use after this query.
+         */
         String[] protection = {
                 PetEntry._ID,
                 PetEntry.COLUMN_PET_NAME,
@@ -107,16 +127,32 @@ public class CatalogActivity extends AppCompatActivity {
                 PetEntry.COLUMN_PET_GENDER,
                 PetEntry.COLUMN_PET_WEIGHT
         };
-        Cursor cursor = db.query(
-                PetEntry.TABLE_NAME,     // The table to query
-                protection,              // The array of columns to return (pass null to get all)
-                null,           // The columns for the WHERE clause
-                null,        // The values for the WHERE clause
-                null,           // don't group the rows
-                null,            // don't filter by row groups
-                null            // The sort order
 
-        );
+//        Cursor cursor = db.query(
+//                PetEntry.TABLE_NAME,     // The table to query
+//                protection,              // The array of columns to return (pass null to get all)
+//                null,           // The columns for the WHERE clause
+//                null,        // The values for the WHERE clause
+//                null,           // don't group the rows
+//                null,            // don't filter by row groups
+//                null            // The sort order
+//
+//        );
+
+        Uri CONTENT_URI = Uri.parse("content://com.example.android.pets/pets");
+
+        String queryUri = CONTENT_URI.toString();
+
+        /**
+         * Perform a query on the provider using the ContentResolver;
+         * use the {@link PetEntry.CONTENT_URI} to access the pet data.
+         */
+        Cursor cursor = getContentResolver().query(
+                PetEntry.CONTENT_URI,    //Uri.parse(queryUri); The content URI of the words table.
+                protection,              // The array of columns to return (pass null to get all);The columns to return for each row.
+                null,            // The columns for the WHERE clause; Selection criteria
+                null,         // The values for the WHERE clause; Selection criteria
+                null);          // The sort order for the returned rows
 
         TextView displayView = (TextView) findViewById(R.id.text_view_pet);
 
@@ -172,13 +208,18 @@ public class CatalogActivity extends AppCompatActivity {
         }
     }
 
+
     /**
      * 插入数据
+     * Helper method to insert hardcoded pet data into the database. For debugging purposes only.
      */
     private void insertPet() {
 
         // Gets the database in write mode
-        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+//        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+
+        // Create a ContentValues object where column names are the keys,
+        // and Toto's pet attributes are the values.
 
         ContentValues values = new ContentValues();
 
@@ -188,8 +229,17 @@ public class CatalogActivity extends AppCompatActivity {
         values.put(PetEntry.COLUMN_PET_WEIGHT, 7);
         // Insert the new row, returning the primary key value of the new row
         // 返回最新行的id，如果插入为空，返回-1
-        long newRowId = db.insert(PetEntry.TABLE_NAME, null, values);
-        Log.i(LOG_TAG, "insertPet: " + newRowId);
+//        long newRowId = db.insert(PetEntry.TABLE_NAME, null, values);
+//        Log.i(LOG_TAG, "insertPet: " + newRowId);
+
+//        getContentResolver().insert(PetEntry.CONTENT_URI, values);
+
+        // Insert a new row for Toto into the provider using the ContentResolver.
+        // Use the {@link PetEntry#CONTENT_URI} to indicate that we want to insert
+        // into the pets database table.
+        // Receive the new content URI that will allow us to access Toto's data in the future.
+        Uri newUri = getContentResolver().insert(PetEntry.CONTENT_URI, values);
+
     }
 
     /**
