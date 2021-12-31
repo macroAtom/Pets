@@ -144,17 +144,21 @@ public class EditorActivity extends AppCompatActivity {
 
         // Read from input fields
         // Use trim to eliminate leading or trailing white space
+        /**
+         * 读取editor 中的编辑字段值
+         */
         String nameString = mNameEditText.getText().toString().trim();
         String breedString = mBreedEditText.getText().toString().trim();
         String weightString = mWeightEditText.getText().toString().trim();
-        int weight = Integer.parseInt(weightString);
-        Log.i(LOG_TAG, "insertPet: " + weight);
+        int weight;
+        if(!TextUtils.isEmpty(weightString)){
+            weight = Integer.parseInt(weightString);
+        } else {
+            weight = 0;
+        }
 
-        // Create database helper
-//        PetDbHelper mDbHelper = new PetDbHelper(this);
+        Log.i(LOG_TAG, "insert Pet: " + weight);
 
-        // Gets the database in write mode
-//        SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
         // Create a ContentValues object where column names are the keys,
         // and pet attributes from the editor are the values.

@@ -79,6 +79,18 @@ public class CatalogActivity extends AppCompatActivity {
 
         mDbHelper = new PetDbHelper(this);
 
+
+//        ContentValues values = new ContentValues();
+//        values.put(PetEntry.COLUMN_PET_NAME, "aa");
+//        values.put(PetEntry.COLUMN_PET_BREED, "hah");
+//        String abc = null;
+//        values.put(PetEntry.COLUMN_PET_GENDER, 1);
+//        values.put(PetEntry.COLUMN_PET_WEIGHT, abc);
+//
+//        int a = values.getAsInteger(abc);
+//
+//        int weight = values.getAsInteger(PetEntry.COLUMN_PET_GENDER);
+//        Log.i(LOG_TAG, "onCreate: "+weight);
         /**
          * 创建Provider的实例
          */

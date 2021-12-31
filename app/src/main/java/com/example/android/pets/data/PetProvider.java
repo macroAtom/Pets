@@ -7,16 +7,14 @@ import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
+import android.text.TextUtils;
 import android.util.Log;
-import android.widget.Toast;
 
-import com.example.android.pets.R;
 import com.example.android.pets.data.PetContract.PetEntry;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import java.util.IllegalFormatException;
 
 /**
  * {@link ContentProvider} for pets app
@@ -41,7 +39,7 @@ public class PetProvider extends ContentProvider {
     /**
      * URI matcher code for the content URI for a single pet in the pets table;
      */
-    private static final int PETS_ID = 101;
+    private static final int PET_ID = 101;
 
     /**
      * UriMatcher object to match a content URI to a corresponding code.
@@ -73,7 +71,7 @@ public class PetProvider extends ContentProvider {
          */
         sUriMatcher.addURI(PetContract.CONTENT_AUTHORITY, PetContract.PATH_PETS, PETS);
         Log.i(LOG_TAG, "static initializer: 1" + sUriMatcher);
-        sUriMatcher.addURI(PetContract.CONTENT_AUTHORITY, PetContract.PATH_PETS + "/#", PETS_ID);
+        sUriMatcher.addURI(PetContract.CONTENT_AUTHORITY, PetContract.PATH_PETS + "/#", PET_ID);
         Log.i(LOG_TAG, "static initializer: 2" + sUriMatcher);
 
     }
@@ -85,12 +83,10 @@ public class PetProvider extends ContentProvider {
      * m是member的首字母
      */
 
-    PetDbHelper mDbHelpler;
+    PetDbHelper mDbHelper;
 
     /**
      * Initialize the provider and the database helper object.
-     *
-     * @return
      */
     @Override
     public boolean onCreate() {
@@ -98,8 +94,8 @@ public class PetProvider extends ContentProvider {
         /**
          * 实例化一个数据库PetDbHelper的实例对象,用于初始化petDbHelper.
          */
-        mDbHelpler = new PetDbHelper(getContext());
-        Log.i(LOG_TAG, "mDbHelpler " + mDbHelpler);
+        mDbHelper = new PetDbHelper(getContext());
+        Log.i(LOG_TAG, "mDbHelpler " + mDbHelper);
         return true;
     }
 
@@ -118,7 +114,7 @@ public class PetProvider extends ContentProvider {
          * Get readable database
          */
 
-        SQLiteDatabase database = mDbHelpler.getReadableDatabase();
+        SQLiteDatabase database = mDbHelper.getReadableDatabase();
         Log.i(LOG_TAG, "Cursor query: " + database);
         /**
          * cursor 用于存储返回的结果
@@ -149,7 +145,7 @@ public class PetProvider extends ContentProvider {
                 break;
 
 
-            case PETS_ID:
+            case PET_ID:
 
                 // For the PET_ID code, extract out the ID from the URI.
                 // For an example URI such as "content://com.example.android.pets/pets/3",
@@ -190,7 +186,24 @@ public class PetProvider extends ContentProvider {
     @Nullable
     @Override
     public String getType(@NonNull Uri uri) {
-        return null;
+        /**
+         * 变量值不再更改
+         */
+        final int match = sUriMatcher.match(uri);
+        switch (match) {
+            case PETS:
+                return PetEntry.CONTENT_LIST_TYPE;
+
+            case PET_ID:
+                return PetEntry.CONTENT_ITEM_TYPE;
+            default:
+                /**
+                 * 如果插入失败，抛出异常
+                 */
+                throw new IllegalStateException("Unknown URI" + uri + " with match " + match);
+        }
+
+
     }
 
     /**
@@ -199,6 +212,35 @@ public class PetProvider extends ContentProvider {
     @Nullable
     @Override
     public Uri insert(@NonNull Uri uri, @Nullable ContentValues contentValues) {
+        /**
+         * sanity checks,即数据合法性检查，检查ContentValues对象
+         */
+        String name = contentValues.getAsString(PetEntry.COLUMN_PET_NAME);
+        Log.i(LOG_TAG, "insert: " + name);
+
+
+        if (name == null || name.equals("") || TextUtils.isEmpty(name)) {
+            Log.e(LOG_TAG, "error insert: " + name);
+            throw new IllegalArgumentException("Pet requires a name");
+        }
+
+        Integer gender = contentValues.getAsInteger(PetEntry.COLUMN_PET_GENDER);
+        if (gender == null && !PetEntry.isValidGender(gender)) {
+            throw new IllegalArgumentException("Pet requires valid gender");
+        }
+
+        // If the weight is provided, check that it's greater than or equal to 0 kg
+        Integer weight = contentValues.getAsInteger(PetEntry.COLUMN_PET_WEIGHT);
+
+        if (weight != null && weight < 0) {
+            throw new IllegalArgumentException("Pet requires valid weight");
+        }
+//        if (weight != null && weight < 0) {
+//            contentValues.put(PetEntry.COLUMN_PET_WEIGHT, 0);
+//            Toast.makeText(getContext(), "插入一个weight默认值为0", Toast.LENGTH_SHORT).show();
+//        }
+
+
         /**
          * 变量值不再更改
          */
@@ -231,7 +273,7 @@ public class PetProvider extends ContentProvider {
          * 创建一个数据库对象用于插入数据库
          * Get writeable database
          */
-        SQLiteDatabase database = mDbHelpler.getReadableDatabase();
+        SQLiteDatabase database = mDbHelper.getReadableDatabase();
 
         /**
          * Insert the new pet with the given values
@@ -264,14 +306,124 @@ public class PetProvider extends ContentProvider {
      */
     @Override
     public int delete(@NonNull Uri uri, @Nullable String selection, @Nullable String[] selectionArgs) {
-        return 0;
+
+        // Get writeable database
+        SQLiteDatabase database = mDbHelper.getWritableDatabase();
+
+        final int match = sUriMatcher.match(uri);
+        switch (match) {
+            case PETS:
+                // Delete all rows that match the selection and selection args
+                return database.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
+            case PET_ID:
+                // Delete a single row given by the ID in the URI
+                selection = PetEntry._ID + "=?";
+                selectionArgs = new String[] { String.valueOf(ContentUris.parseId(uri)) };
+                return database.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
+            default:
+                throw new IllegalArgumentException("Deletion is not supported for " + uri);
+        }
+
+
+
     }
 
     /**
      * Updates the data at the given selection and selection arguments, with the new ContentValues.
      */
     @Override
-    public int update(@NonNull Uri uri, @Nullable ContentValues values, @Nullable String selection, @Nullable String[] selectionArgs) {
-        return 0;
+    public int update(@NonNull Uri uri, @Nullable ContentValues contentValues, @Nullable String selection, @Nullable String[] selectionArgs) {
+
+
+        /**
+         * 变量值不再更改
+         */
+        final int match = sUriMatcher.match(uri);
+        switch (match) {
+            case PETS:
+                return updatePet(uri, contentValues, selection, selectionArgs);
+            // For the PET_ID code, extract out the ID from the URI,
+            // so we know which row to update. Selection will be "_id=?" and selection
+            // arguments will be a String array containing the actual ID.
+            case PET_ID:
+                selection = PetEntry._ID + "=?";                                                    // 筛选条件  id=?
+                selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};            // 筛选条件比如 5， id=5
+
+                return updatePet(uri, contentValues, selection, selectionArgs);
+
+            default:
+                /**
+                 * 如果插入失败，抛出异常
+                 */
+                throw new IllegalArgumentException("Update is not supported for " + uri);
+        }
+
+    }
+
+    /**
+     * Update pets in the database with the given content values. Apply the changes to the rows
+     * specified in the selection and selection arguments (which could be 0 or 1 or more pets).
+     * Return the number of rows that were successfully updated.
+     */
+    private int updatePet(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
+
+        // If the {@link PetEntry#COLUMN_PET_NAME} key is present,
+        // check that the name value is not null.
+        if (values.containsKey(PetEntry.COLUMN_PET_NAME)) {
+            String name = values.getAsString(PetEntry.COLUMN_PET_NAME);
+            if (name == null) {
+                throw new IllegalArgumentException("Pet requires a name");
+            }
+        }
+
+        // If the {@link PetEntry#COLUMN_PET_GENDER} key is present,
+        // check that the gender value is valid.
+        if (values.containsKey(PetEntry.COLUMN_PET_GENDER)) {
+            Integer gender = values.getAsInteger(PetEntry.COLUMN_PET_GENDER);
+            if (gender == null || !PetEntry.isValidGender(gender)) {
+                throw new IllegalArgumentException("Pet requires valid gender");
+            }
+        }
+
+        // If the {@link PetEntry#COLUMN_PET_WEIGHT} key is present,
+        // check that the weight value is valid.
+        if (values.containsKey(PetEntry.COLUMN_PET_WEIGHT)) {
+            // Check that the weight is greater than or equal to 0 kg
+            Integer weight = values.getAsInteger(PetEntry.COLUMN_PET_WEIGHT);
+            if (weight != null && weight < 0) {
+                throw new IllegalArgumentException("Pet requires valid weight");
+            }
+        }
+
+        // No need to check the breed, any value is valid (including null).
+
+        // If there are no values to update, then don't try to update the database
+        if (values.size() == 0) {
+            return 0;
+        }
+
+
+        /**
+         * sanity checks,即数据合法性检查，检查ContentValues对象
+         */
+
+        // Otherwise, get writeable database to update the data
+        /**
+         * 以上的字段都检出过后，再执行这个方法
+         */
+        SQLiteDatabase database = mDbHelper.getWritableDatabase();
+        /**
+         * Insert the new pet with the given values
+         */
+
+        // Returns the number of database rows affected by the update statement
+
+        int id = database.update(
+                PetEntry.TABLE_NAME,
+                values,
+                selection,
+                selectionArgs);
+
+        return id;
     }
 }
