@@ -176,6 +176,15 @@ public class PetProvider extends ContentProvider {
 
         }
 
+        /**
+         * Set notification URI on the cursor.
+         * so we know what content URI the cursor was created for.
+         * if the data at this URI changes, then we know we need to update the cursor
+         *
+         * 我们传入第一个参数为ContentResolver，以使与这个Resolver关联的侦听器（这个案例中为catalog activity），自动收到通知。
+         * URI:我们要监视的内容的URI
+         */
+        cursor.setNotificationUri(getContext().getContentResolver(),uri);
 
         return cursor;
     }
@@ -295,6 +304,10 @@ public class PetProvider extends ContentProvider {
             Log.e(LOG_TAG, "Failed to insert row for " + uri);
             return null;
         }
+        // Notify  all listeners that the data has changed for the pet content URI
+        // uri: content://com.example.android.pets/pets
+        getContext().getContentResolver().notifyChange(uri,null);
+
         // Return the new URI with the ID (of the newly inserted row) appended at the end
         return ContentUris.withAppendedId(uri, id);
 
@@ -310,16 +323,45 @@ public class PetProvider extends ContentProvider {
         // Get writeable database
         SQLiteDatabase database = mDbHelper.getWritableDatabase();
 
+        int rowsDeleted;
+
         final int match = sUriMatcher.match(uri);
         switch (match) {
             case PETS:
+
                 // Delete all rows that match the selection and selection args
-                return database.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
+                // For  case PETS:
+                rowsDeleted = database.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
+
+                if(rowsDeleted!=0){
+                    // 设置通知URI，当数据删除时，更新Loader
+                    // If 1 or more rows were deleted, then notify all listeners that the data at the
+                    // given URI has changed
+                    getContext().getContentResolver().notifyChange(uri,null);
+                }
+
+
+                // Delete all rows that match the selection and selection args
+                return rowsDeleted;
             case PET_ID:
+
+
+                // For case PET_ID:
                 // Delete a single row given by the ID in the URI
                 selection = PetEntry._ID + "=?";
                 selectionArgs = new String[] { String.valueOf(ContentUris.parseId(uri)) };
-                return database.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
+
+                rowsDeleted = database.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
+
+                if(rowsDeleted!=0){
+                    // 设置通知URI，当数据删除时，更新Loader
+                    // If 1 or more rows were deleted, then notify all listeners that the data at the
+                    // given URI has changed
+                    getContext().getContentResolver().notifyChange(uri,null);
+                }
+                // Delete all rows that match the selection and selection args
+                return rowsDeleted;
+
             default:
                 throw new IllegalArgumentException("Deletion is not supported for " + uri);
         }
@@ -348,6 +390,7 @@ public class PetProvider extends ContentProvider {
             case PET_ID:
                 selection = PetEntry._ID + "=?";                                                    // 筛选条件  id=?
                 selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};            // 筛选条件比如 5， id=5
+
 
                 return updatePet(uri, contentValues, selection, selectionArgs);
 
@@ -418,12 +461,20 @@ public class PetProvider extends ContentProvider {
 
         // Returns the number of database rows affected by the update statement
 
-        int id = database.update(
+        int rowsUpdated  = database.update(
                 PetEntry.TABLE_NAME,
                 values,
                 selection,
                 selectionArgs);
 
-        return id;
+        // If 1 or more rows were updated, then notify all listeners that the data at the
+        // given URI has changed
+        if(rowsUpdated!=0){
+            // 设置通知URI，当数据更新后，更新Loader
+            getContext().getContentResolver().notifyChange(uri,null);
+        }
+
+        // Return the number of rows updated
+        return rowsUpdated;
     }
 }

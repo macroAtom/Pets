@@ -30,7 +30,12 @@ import android.view.View;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.loader.app.LoaderManager;
+import androidx.loader.content.CursorLoader;
+import androidx.loader.content.Loader;
 
 import com.example.android.pets.data.PetContract.PetEntry;
 import com.example.android.pets.data.PetDbHelper;
@@ -42,8 +47,18 @@ import java.net.URI;
 /**
  * Displays list of pets that were entered and stored in the app.
  */
-public class CatalogActivity extends AppCompatActivity {
 
+/**
+ * LoaderCallbacks中的参数,是作为Loader 的返回结果. 例如:Cursor,即 作为Loader的返回结果
+ */
+public class CatalogActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor> {
+
+
+    // Identifies a particular Loader being used in this component
+    /**
+     * 标识一个特定的Loader,在这个组件中使用
+     */
+    private static final int PET_LOADER = 0;
 
     // 获取类名称
     public static final String LOG_TAG = CatalogActivity.class.getSimpleName();
@@ -55,6 +70,11 @@ public class CatalogActivity extends AppCompatActivity {
      */
     private PetDbHelper mDbHelper;
 
+
+    /**
+     * 设置adapter全局变量,在onCreate 方法中初始化.
+     */
+    PetCursorAdapter mCursorAdapter;
 
     // Create and/or open a database to read from it
     // 这一步相当与在命令行执行.open shelter.db
@@ -75,23 +95,22 @@ public class CatalogActivity extends AppCompatActivity {
             }
         });
 
+        // Find the ListView which will be populated with the pet data
+        ListView petListView = (ListView) findViewById(R.id.list);
+
         // To access our database, we instantiate our subclass of SQLiteOpenHelper
         // and pass the context, which is the current activity.
-
         mDbHelper = new PetDbHelper(this);
+        mCursorAdapter = new PetCursorAdapter(this,null);
+        /**
+         * Attach the adapter to the VistView
+         */
+        petListView.setAdapter(mCursorAdapter);
+        // Get a reference to the LoaderManager, in order to interact with loaders.
+        LoaderManager loaderManager = LoaderManager.getInstance(this);
 
-
-//        ContentValues values = new ContentValues();
-//        values.put(PetEntry.COLUMN_PET_NAME, "aa");
-//        values.put(PetEntry.COLUMN_PET_BREED, "hah");
-//        String abc = null;
-//        values.put(PetEntry.COLUMN_PET_GENDER, 1);
-//        values.put(PetEntry.COLUMN_PET_WEIGHT, abc);
-//
-//        int a = values.getAsInteger(abc);
-//
-//        int weight = values.getAsInteger(PetEntry.COLUMN_PET_GENDER);
-//        Log.i(LOG_TAG, "onCreate: "+weight);
+        // 初始化Loader; kick off the loader
+        loaderManager.initLoader(PET_LOADER, null, this).forceLoad();
         /**
          * 创建Provider的实例
          */
@@ -103,16 +122,32 @@ public class CatalogActivity extends AppCompatActivity {
 //        Cursor cursor = getContentResolver().query(Uri.parse(queryUri), null, null, null, null);
 //        Log.i(LOG_TAG, "onCreate: " + cursor);
 
+
+
+
+        // Find and set empty view on the ListView, so that it only shows when the list has 0 items.
+        View emptyView = findViewById(R.id.empty_view);
+        petListView.setEmptyView(emptyView);
+
+
+        /**
+         * 设置一个适配器，为cursor中的每一行宠物数据创建一个list 条目
+         * Setup an Adapter to create a list item for each row of pet data in the Cursor.
+         */
+
+        Log.i(LOG_TAG, "displayDatabaseInfo: " + mCursorAdapter);
+
+
+
     }
 
     /**
      * EditorActivity 完成编辑后，重新进入会执行的方法
      */
-    @Override
-    protected void onStart() {
-        super.onStart();
-        displayDatabaseInfo();
-    }
+//    @Override
+//    protected void onStart() {
+//        super.onStart();
+//    }
 
 
     /**
@@ -120,64 +155,45 @@ public class CatalogActivity extends AppCompatActivity {
      * the pets database.
      * 临时方法，显示信息在屏幕上，关于pets Database
      */
-    private void displayDatabaseInfo() {
-
-        // Create and/or open a database to read from it
-//        SQLiteDatabase db = mDbHelper.getReadableDatabase();
-
-        // Perform this raw SQL query "SELECT * FROM pets"
-        // to get a Cursor that contains all rows from the pets table.
-//        Cursor cursor = db.rawQuery("SELECT * FROM " + PetEntry.TABLE_NAME, null);
-
-        /**
-         * Define a projection that specifies which columns from the database
-         * you will actually use after this query.
-         */
-        String[] protection = {
-                PetEntry._ID,
-                PetEntry.COLUMN_PET_NAME,
-                PetEntry.COLUMN_PET_BREED,
-                PetEntry.COLUMN_PET_GENDER,
-                PetEntry.COLUMN_PET_WEIGHT
-        };
-
-
-        Uri CONTENT_URI = Uri.parse("content://com.example.android.pets/pets");
-
-        String queryUri = CONTENT_URI.toString();
-
-        /**
-         * Perform a query on the provider using the ContentResolver;
-         * use the {@link PetEntry.CONTENT_URI} to access the pet data.
-         */
-        Cursor cursor = getContentResolver().query(
-                PetEntry.CONTENT_URI,    //Uri.parse(queryUri); The content URI of the words table.
-                protection,              // The array of columns to return (pass null to get all);The columns to return for each row.
-                null,            // The columns for the WHERE clause; Selection criteria
-                null,         // The values for the WHERE clause; Selection criteria
-                null);          // The sort order for the returned rows
-
-
-        // Find the ListView which will be populated with the pet data
-        ListView petListView = (ListView) findViewById(R.id.list);
-
-
-        // Find and set empty view on the ListView, so that it only shows when the list has 0 items.
-        View emptyView = findViewById(R.id.empty_view);
-        petListView.setEmptyView(emptyView);
-
-        /**
-         * 设置一个适配器，为cursor中的每一行宠物数据创建一个list 条目
-         * Setup an Adapter to create a list item for each row of pet data in the Cursor.
-         */
-        PetCursorAdapter adapter  = new PetCursorAdapter(this,cursor);
-
-        /**
-         * Attach the adapter to the VistView
-         */
-        petListView.setAdapter(adapter);
-
-    }
+//    private void displayDatabaseInfo() {
+//
+//        // Create and/or open a database to read from it
+////        SQLiteDatabase db = mDbHelper.getReadableDatabase();
+//
+//        // Perform this raw SQL query "SELECT * FROM pets"
+//        // to get a Cursor that contains all rows from the pets table.
+////        Cursor cursor = db.rawQuery("SELECT * FROM " + PetEntry.TABLE_NAME, null);
+//
+//        /**
+//         * Define a projection that specifies which columns from the database
+//         * you will actually use after this query.
+//         */
+//        String[] protection = {
+//                PetEntry._ID,
+//                PetEntry.COLUMN_PET_NAME,
+//                PetEntry.COLUMN_PET_BREED,
+//                PetEntry.COLUMN_PET_GENDER,
+//                PetEntry.COLUMN_PET_WEIGHT
+//        };
+//
+//
+//        Uri CONTENT_URI = Uri.parse("content://com.example.android.pets/pets");
+//
+//        String queryUri = CONTENT_URI.toString();
+//
+//        /**
+//         * Perform a query on the provider using the ContentResolver;
+//         * use the {@link PetEntry.CONTENT_URI} to access the pet data.
+//         */
+//        Cursor cursor = getContentResolver().query(
+//                PetEntry.CONTENT_URI,    //Uri.parse(queryUri); The content URI of the words table.
+//                protection,              // The array of columns to return (pass null to get all);The columns to return for each row.
+//                null,            // The columns for the WHERE clause; Selection criteria
+//                null,         // The values for the WHERE clause; Selection criteria
+//                null);          // The sort order for the returned rows
+//
+//
+//    }
 
 
     /**
@@ -248,17 +264,87 @@ public class CatalogActivity extends AppCompatActivity {
             // Respond to a click on the "Insert dummy data" menu option
             case R.id.action_insert_dummy_data:
                 insertPet();
-                displayDatabaseInfo();
+//                displayDatabaseInfo();
                 return true;
             // Respond to a click on the "Delete all entries" menu option
             case R.id.action_delete_all_entries:
                 // Do nothing for now
                 deletePet();
-                displayDatabaseInfo();
+//                displayDatabaseInfo();
                 return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
 
+    @NonNull
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, @Nullable Bundle args) {
+
+        String[] protection = {
+                PetEntry._ID,
+                PetEntry.COLUMN_PET_NAME,
+                PetEntry.COLUMN_PET_BREED
+        };
+
+
+        switch (id) {
+            case PET_LOADER:
+                /**
+                 * 返回一个新的CursorLaoder
+                 */
+                return new CursorLoader(
+                        this,              // Parent activity context
+                        PetEntry.CONTENT_URI,        // Table to query
+                        protection,              // Projection to return
+                        null,               // No selection clause
+                        null,            // No selection arguments
+                        null                // Default sort order
+                );
+            default:
+                // An invalid id was passed in
+                /**
+                 * 非法id传入
+                 */
+                return null;
+        }
+    }
+
+    @Override
+    public void onLoadFinished(@NonNull Loader<Cursor> loader, Cursor data) {
+
+
+        Cursor cursor = data;
+        Log.i(LOG_TAG, "onLoadFinished: " + cursor);
+//        adapter = new PetCursorAdapter(this, cursor);
+
+
+        /**
+         * Moves the query results into the adapter, causing the
+         * ListView fronting this adapter to re-display
+         *
+         * 将返回的结果移入adapter,从而将结果显示在ListView
+         * update {@link PetCursorAdapter} with the new cursor containing updated pet data
+         * 用包含已更新宠物数据的新Cursor进行更新
+         */
+
+//        mCursorAdapter.changeCursor(data);
+        mCursorAdapter.swapCursor(data);
+
+    }
+
+
+    @Override
+    public void onLoaderReset(@NonNull Loader<Cursor> loader) {
+        /**
+         * Clears out the adapter's reference to the Cursor.
+         * This prevents memory leaks.
+         *
+         * 清空 adapter 对Cursor 的引用,防止内存泄露
+         * Callback called when the data needs to be deleted
+         * 这个回调是在需要删除数据时调用
+         */
+//        mCursorAdapter.changeCursor(null);
+        mCursorAdapter.swapCursor(null);
+    }
 }
