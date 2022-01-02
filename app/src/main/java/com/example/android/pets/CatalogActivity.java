@@ -15,6 +15,7 @@
  */
 package com.example.android.pets;
 
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
@@ -27,6 +28,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.TextView;
 
@@ -90,7 +92,7 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(CatalogActivity.this, EditorActivity.class);
+                Intent intent = new Intent(CatalogActivity.this, EditorActivity.class).setData(null);
                 startActivity(intent);
             }
         });
@@ -98,10 +100,42 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
         // Find the ListView which will be populated with the pet data
         ListView petListView = (ListView) findViewById(R.id.list);
 
+        // 设置监听器，点击listView 中的item 打开editor
+        // set the item click listener
+        petListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+
+                // Create new intent to go to {@link EditorActivity}
+                Intent intent = new Intent(CatalogActivity.this, EditorActivity.class);
+
+                /** Form the content Uri that represents the specific pet that was clicked on.
+                 * by adding the "id" (passed as input to this method) onto the
+                 *{@link PetEntry#CONTENT_URI}.
+                 * For example, the uri would be "content://com.example.android.pets/pets/2"
+                 * if the pet with id was clicked on.
+                 */
+
+                Uri currentPetUri = Uri.withAppendedPath(PetEntry.CONTENT_URI,String.valueOf(id));
+
+//                Uri currentPetUri = ContentUris.withAppendedId(PetEntry.CONTENT_URI,id);
+                Log.i(LOG_TAG, "onItemClick: currentPetUri " + currentPetUri);
+                /**
+                 * Set the uri on the data field of the intent
+                 */
+                intent.setData(currentPetUri);
+
+                /**
+                 * launch the intent {@link EditorActivity} to display the data for the current pet.
+                 */
+                startActivity(intent);
+            }
+        });
+
         // To access our database, we instantiate our subclass of SQLiteOpenHelper
         // and pass the context, which is the current activity.
         mDbHelper = new PetDbHelper(this);
-        mCursorAdapter = new PetCursorAdapter(this,null);
+        mCursorAdapter = new PetCursorAdapter(this, null);
         /**
          * Attach the adapter to the VistView
          */
@@ -123,8 +157,6 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
 //        Log.i(LOG_TAG, "onCreate: " + cursor);
 
 
-
-
         // Find and set empty view on the ListView, so that it only shows when the list has 0 items.
         View emptyView = findViewById(R.id.empty_view);
         petListView.setEmptyView(emptyView);
@@ -136,7 +168,6 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
          */
 
         Log.i(LOG_TAG, "displayDatabaseInfo: " + mCursorAdapter);
-
 
 
     }
@@ -294,9 +325,9 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
                  * 返回一个新的CursorLaoder
                  */
                 return new CursorLoader(
-                        this,              // Parent activity context
+                        this,                // Parent activity context
                         PetEntry.CONTENT_URI,        // Table to query
-                        protection,              // Projection to return
+                        protection,                  // Projection to return
                         null,               // No selection clause
                         null,            // No selection arguments
                         null                // Default sort order
