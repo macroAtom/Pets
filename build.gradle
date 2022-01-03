@@ -25,6 +25,8 @@
 
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
+// google 和 jcenter 都是库，classpath 时要从这些库下载使用的包
+
 buildscript {
     repositories {
         google()
@@ -46,4 +48,6 @@ buildscript {
 
 task clean(type: Delete) {
     delete rootProject.buildDir
+
+    println("Print Variable : rootProject.buildDir : ${rootProject.buildDir}")
 }

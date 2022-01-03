@@ -8,5 +8,8 @@ dependencyResolutionManagement {
         jcenter() // Warning: this repository is going to shut down soon
     }
 }
-rootProject.name = "ud845-Pets-starting-point"
+
+rootProject.name = "ud845-Pets-A"
+
 include ':app'
+
