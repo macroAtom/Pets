@@ -2,6 +2,7 @@ package com.example.android.pets;
 
 import android.content.Context;
 import android.database.Cursor;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -67,6 +68,7 @@ public class PetCursorAdapter extends CursorAdapter {
         Log.i(LOG_TAG, "bindView: " + cursor);
         /**
          * 找到name TextView id 并存储到TextView name对象中
+         * Find individual views that we want to modify in the list item layout
          */
         TextView nameTextView = view.findViewById(R.id.name);
         Log.i(LOG_TAG, "bindView: " + nameTextView);
@@ -86,12 +88,23 @@ public class PetCursorAdapter extends CursorAdapter {
 
         /**
          * 提取name、breed值从cursor里面
+         * Read the pet attributes from the Cursor for the current pet
          */
         String petName = cursor.getString(nameColumnIndex);
         String petBreed = cursor.getString(breedColumnIndex);
 
         /**
+         * 检查Breed 是否为空
+         * If the pet breed is empty string or null, then use some default text
+         * that says "Unknown breed", so the TextView isn't blank.
+         */
+        if(TextUtils.isEmpty(petBreed)){
+            petBreed = context.getString(R.string.unknown_breed);
+        }
+
+        /**
          * 填充值到textView 里面
+         * Update the TextViews with the attributes for the current pet
          */
         nameTextView.setText(petName);
         summaryTextView.setText(petBreed);

@@ -17,6 +17,7 @@ package com.example.android.pets;
 
 import android.content.ContentUris;
 import android.content.ContentValues;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -24,10 +25,12 @@ import android.net.Uri;
 import android.os.Bundle;
 //import android.support.v4.app.NavUtils;
 //import android.support.v7.app.AppCompatActivity;
+import android.provider.UserDictionary;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -38,6 +41,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NavUtils;
 import androidx.loader.app.LoaderManager;
@@ -57,6 +61,13 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
      * 标识一个特定的Loader,在这个组件中使用
      */
     private static final int PET_LOADER_EDITOR = 1;
+
+    /**
+     * boolean 类型，存储pet属性值是否发生改变
+     */
+
+    private boolean mPetHasChanged = false;
+
 
     // 获取类名称
     public static final String LOG_TAG = EditorActivity.class.getSimpleName();
@@ -103,6 +114,7 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_editor);
+        Log.i(LOG_TAG, "onCreate: 加载2 ");
         // mDbHelper = new PetDbHelper(this);
 
         // Use getIntent() and getData() to get the associated URI
@@ -112,9 +124,11 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
         // in order to figure out if we're creating a new pet or editing an existing one.
         // 获取intent
         Intent intent = getIntent();
+        Log.i(LOG_TAG, "onCreate: 加载3 ");
         Log.i(LOG_TAG, "onCreate:getIntent() getData() " + intent);
         // 获取Uri
         mCurrentPetUri = intent.getData();
+        Log.i(LOG_TAG, "onCreate: 加载4 ");
 //        if(uri != null){
 //            Log.i(LOG_TAG, "onCreate:getIntent() getData() " + uri);
 //            this.setTitle("Edit Pet");
@@ -124,17 +138,30 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
 
         // if the intent DOES NOT contain a pet content URI, then we know that we are creating a new pet.
         if (mCurrentPetUri == null) {
+            /**
+             * 设置insert mode,如果mCurrentPetUri 为空
+             */
             Log.i(LOG_TAG, "onCreate:getIntent() getData() " + mCurrentPetUri);
+            // This is a new pet, so change the app bar to say "Add a Pet"
             this.setTitle(getString(R.string.editor_activity_title_new_pet));
+
+            // Invalidate the options menu, so the "Delete" menu option can be hidden.
+            // (It doesn't make sense to delete a pet that hasn't been created yet.)
+            invalidateOptionsMenu();
+
         } else {
             // otherwise this is an existing pet, so change app bar to say "Edit Pet"
 
             // Get a reference to the LoaderManager, in order to interact with loaders.
             LoaderManager loaderManager = LoaderManager.getInstance(this);
-
+            Log.i(LOG_TAG, "onCreate: 加载5 ");
             // 初始化Loader; kick off the loader
             loaderManager.initLoader(PET_LOADER_EDITOR, null, this).forceLoad();
 
+            /**
+             * 设置update mode,如果mCurrentPetUri 不为空
+             */
+            Log.i(LOG_TAG, "onCreate: 加载6 ");
             this.setTitle(getString(R.string.editor_activity_title_edit_pet));
         }
 
@@ -147,7 +174,110 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
         setupSpinner();
 
 
+        /**
+         * 监听字段值，是否发生变更，如果发生变更，将mPetHasChanged 更改为true;
+         */
+        mNameEditText.setOnTouchListener(mTouchListener);
+        mBreedEditText.setOnTouchListener(mTouchListener);
+        mWeightEditText.setOnTouchListener(mTouchListener);
+        mGenderSpinner.setOnTouchListener(mTouchListener);
+
     }
+
+    /**
+     * 监听view属性是否改变
+     */
+    private View.OnTouchListener mTouchListener = new View.OnTouchListener() {
+
+        @Override
+        public boolean onTouch(View v, MotionEvent event) {
+            mPetHasChanged = true;
+            return false;
+        }
+    };
+
+    private void showUnsavedChangesDialog(DialogInterface.OnClickListener discardButtonClickListener) {
+        // Create an AlertDialog.Builder and set the message, and click listeners
+        // for the positive and negative buttons on the dialog.
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        builder.setMessage(R.string.unsaved_changes_dialog_msg);
+
+        builder.setPositiveButton(R.string.discard, discardButtonClickListener);
+
+        builder.setNegativeButton(R.string.keep_editing, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User clicked the "Keep editing" button, so dismiss the dialog
+                // and continue editing the pet.
+                if (dialog != null) {
+                    dialog.dismiss();
+                }
+            }
+        });
+
+        // Create and show the AlertDialog
+        AlertDialog alertDialog = builder.create();
+        alertDialog.show();
+
+    }
+
+    /**
+     * 控制的底部返回按钮。这个按钮返回的时上一个步骤（有可能从其他步骤而开，则这个按钮返回的时其他步骤）
+     */
+    @Override
+    public void onBackPressed() {
+        Log.i(LOG_TAG, "onBackPressed: " + "序号1");
+        // If the pet hasn't changed, continue with handling back button press
+        if (!mPetHasChanged) {
+            super.onBackPressed();
+            return;
+        }
+
+        // Otherwise if there are unsaved changes, setup a dialog to warn the user.
+        // Create a click listener to handle the user confirming that changes should be discarded.
+        DialogInterface.OnClickListener discardButtonClickListener =
+                new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        // User clicked "Discard" button, close the current activity.
+                        finish();
+                    }
+                };
+
+
+        // Show dialog that there are unsaved changes
+        showUnsavedChangesDialog(discardButtonClickListener);
+
+    }
+
+
+    //    private void showUnsavedChangesDialog(
+//            DialogInterface.OnClickListener discardButtonClickListener) {
+//        // Create an AlertDialog.Builder and set the message, and click listeners
+//        // for the positive and negative buttons on the dialog.
+//        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+//        builder.setMessage(R.string.unsaved_changes_dialog_msg);
+//        builder.setPositiveButton(R.string.discard, discardButtonClickListener);
+//        builder.setNegativeButton(R.string.keep_editing, new DialogInterface.OnClickListener() {
+//            public void onClick(DialogInterface dialog, int id) {
+//                // User clicked the "Keep editing" button, so dismiss the dialog
+//                // and continue editing the pet.
+//                if (dialog != null) {
+//                    dialog.dismiss();
+//                }
+//            }
+//        });
+//
+//        // Create and show the AlertDialog
+//        AlertDialog alertDialog = builder.create();
+//        alertDialog.show();
+//    }
+
+
+    /**
+     * OnTouchListener than listens for any user touches on a view, implying that
+     * the view, and we change the mPetHasChanged boolean to true
+     */
 
     /**
      * Setup the dropdown spinner that allows the user to select the gender of the pet.
@@ -189,8 +319,6 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
     }
 
 
-
-
     /**
      * 获取edittext 并插入数据库
      * Get user input from editor and save new pet into database.
@@ -206,14 +334,19 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
         String nameString = mNameEditText.getText().toString().trim();
         String breedString = mBreedEditText.getText().toString().trim();
         String weightString = mWeightEditText.getText().toString().trim();
-        int weight;
+        int weight = 0;
         if (!TextUtils.isEmpty(weightString)) {
             weight = Integer.parseInt(weightString);
-        } else {
-            weight = 0;
         }
 
-        Log.i(LOG_TAG, "insert Pet: " + weight);
+        // 判断是否未编辑任何宠物信息，如果未编辑任何信息，就直接退出
+        if (mCurrentPetUri == null &&
+                TextUtils.isEmpty(nameString) && TextUtils.isEmpty(breedString) &&
+                TextUtils.isEmpty(weightString) && mGender == PetEntry.GENDER_UNKNOWN) {
+            return;
+        }
+
+        Log.i(LOG_TAG, "insert Pet: " + nameString);
 
 
         // Create a ContentValues object where column names are the keys,
@@ -226,8 +359,9 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
 
         // Insert a new pet into the provider, returning the content URI for the new pet.
         if (mCurrentPetUri == null) {
-            Uri newUri = getContentResolver().insert(PetEntry.CONTENT_URI, values);
 
+            Uri newUri = getContentResolver().insert(PetEntry.CONTENT_URI, values);
+            Log.i(LOG_TAG, "newUri: " + newUri);
             if (newUri == null) {
                 // If the new content URI is null, then there was an error with insertion.
                 Toast.makeText(this, getString(R.string.editor_insert_pet_failed), Toast.LENGTH_SHORT).show();
@@ -236,7 +370,7 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
                 Toast.makeText(this, getString(R.string.editor_insert_pet_successful), Toast.LENGTH_SHORT).show();
             }
 
-        }else {
+        } else {
 
             // 我的更新方式
 //            String selection = PetEntry._ID + "=?";
@@ -276,7 +410,6 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
         }
 
 
-
         //Show a toast message depending on whether or not the insertion was successful
 //        if (newUri == null) {
 //
@@ -292,6 +425,24 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
 
     }
 
+    /**
+     * This method is called after invalidateOptionsMenu(), so that the
+     * menu can be updated (some menu items can be hidden or made visible).
+     */
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        Log.i(LOG_TAG, "onPrepareOptionsMenu: 加载 1");
+        super.onPrepareOptionsMenu(menu);
+
+        /**
+         * 如果为插入模式，隐藏delete按钮
+         */
+        if (mCurrentPetUri == null) {
+            MenuItem menuItem = menu.findItem(R.id.action_delete);
+            menuItem.setVisible(false);
+        }
+        return true;
+    }
 
 
     /**
@@ -356,10 +507,9 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
 ////        }
 //
 //    }
-
-
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
+        Log.i(LOG_TAG, "onCreateOptionsMenu: 加载7 ");
         // Inflate the menu options from the res/menu/menu_editor.xml file.
         // This adds menu items to the app bar.
         getMenuInflater().inflate(R.menu.menu_editor, menu);
@@ -368,6 +518,7 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        Log.i(LOG_TAG, "onOptionsItemSelected: 加载8 ");
         // User clicked on a menu option in the app bar overflow menu
         switch (item.getItemId()) {
             // Respond to a click on the "Save" menu option
@@ -382,13 +533,43 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
                 finish();
                 return true;
             // Respond to a click on the "Delete" menu option
+            /**
+             * 这里控制右上角的删除按钮
+             * Respond to a click on the "Delete" menu option
+             */
             case R.id.action_delete:
-                // Do nothing for now
+                // Pop up confirmation dialog for deletion
+                showDeleteConfirmationDialog();
                 return true;
-            // Respond to a click on the "Up" arrow button in the app bar
+
+            /**
+             * 这里控制的时左上角的返回上一步按钮（这个返回的时该应用的父Activity）
+             * Respond to a click on the "Up" arrow button in the app bar
+             */
             case android.R.id.home:
-                // Navigate back to parent activity (CatalogActivity)
-                NavUtils.navigateUpFromSameTask(this);
+                Log.i(LOG_TAG, "onOptionsItemSelected: " + "序号 2");
+                // If the pet hasn't changed, continue with navigating up to parent activity
+                // which is the {@link CatalogActivity}.
+                if (!mPetHasChanged) {
+                    NavUtils.navigateUpFromSameTask(EditorActivity.this);
+                    return true;
+                }
+
+                // Otherwise if there are unsaved changes, setup a dialog to warn the user.
+                // Create a click listener to handle the user confirming that
+                // changes should be discarded.
+                DialogInterface.OnClickListener discardButtonClickListener =
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                // User clicked "Discard" button, navigate to parent activity.
+                                // Navigate back to parent activity (CatalogActivity)
+                                NavUtils.navigateUpFromSameTask(EditorActivity.this);
+                            }
+                        };
+
+                // Show a dialog that notifies the user they have unsaved changes
+                showUnsavedChangesDialog(discardButtonClickListener);
                 return true;
         }
         return super.onOptionsItemSelected(item);
@@ -533,13 +714,98 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
     public void onLoaderReset(@NonNull Loader<Cursor> loader) {
         Log.i(LOG_TAG, "onLoaderReset: " + loader);
 
-        /**
-         * 清空输入字段
-         */
-        mNameEditText = null;
-        mBreedEditText = null;
-        mGenderSpinner = null;
-        mWeightEditText = null;
+//        /**
+//         * 清空输入字段
+//         */
+//        mNameEditText = null;
+//        mBreedEditText = null;
+//        mGenderSpinner = null;
+//        mWeightEditText = null;
 
+        // If the loader is invalidated, clear out all the data from the input fields.
+        mNameEditText.setText("");
+        mBreedEditText.setText("");
+        mWeightEditText.setText("");
+        mGenderSpinner.setSelection(0); // Select "Unknown" gender
+
+    }
+
+
+    private void showDeleteConfirmationDialog() {
+        // Create an AlertDialog.Builder and set the message, and click listeners
+        // for the postivie and negative buttons on the dialog.
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage(R.string.delete_dialog_msg);
+        builder.setPositiveButton(R.string.delete, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User clicked the "Delete" button, so delete the pet.
+                deletePet();
+            }
+        });
+        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int id) {
+                // User clicked the "Cancel" button, so dismiss the dialog
+                // and continue editing the pet.
+                if (dialog != null) {
+                    dialog.dismiss();
+                }
+            }
+        });
+
+        // Create and show the AlertDialog
+        AlertDialog alertDialog = builder.create();
+        alertDialog.show();
+    }
+
+    /**
+     * Perform the deletion of the pet in the database.
+     */
+    private void deletePet() {
+        // TODO: Implement this method
+        // 删除 某条记录
+
+        // 我的删除方式
+//        String selection = PetEntry._ID + " = ?";
+//        String[] selectionArgs = new String[]{String.valueOf(ContentUris.parseId(mCurrentPetUri))};
+//
+//        int rowsAffected = getContentResolver().delete(mCurrentPetUri, selection,selectionArgs);
+//
+//        /**
+//         * 判断是否删除成功
+//         */
+//        if(rowsAffected>0){
+//            Toast.makeText(this, R.string.editor_delete_pet_successful, Toast.LENGTH_SHORT).show();
+//        }else {
+//            Toast.makeText(this, R.string.editor_delete_pet_failed, Toast.LENGTH_SHORT).show();
+//        }
+//
+//
+//        finish();
+
+
+        // Only perform the delete if this is an existing pet.
+
+
+        // Only perform the delete if this is an existing pet.
+        if (mCurrentPetUri != null) {
+            // Call the ContentResolver to delete the pet at the given content URI.
+            // Pass in null for the selection and selection args because the mCurrentPetUri
+            // content URI already identifies the pet that we want.
+            int rowsDeleted = getContentResolver().delete(mCurrentPetUri, null, null);
+
+            // Show a toast message depending on whether or not the delete was successful.
+            if (rowsDeleted == 0) {
+                // If no rows were deleted, then there was an error with the delete.
+                Toast.makeText(this, getString(R.string.editor_delete_pet_failed),
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                // Otherwise, the delete was successful and we can display a toast.
+                Toast.makeText(this, getString(R.string.editor_delete_pet_successful),
+                        Toast.LENGTH_SHORT).show();
+            }
+
+            // Close the activity
+            finish();
+        }
     }
 }

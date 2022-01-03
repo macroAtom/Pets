@@ -31,6 +31,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -264,21 +265,57 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
      * 清空表数据
      */
 
-    private void deletePet() {
-        // Gets the database in write mode
-        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+//    private void deletePetOld() {
+//        // Gets the database in write mode
+//        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+//
+//        // Define 'where' part of query.
+//        String selection = PetEntry._ID + " >0";
+//        // Specify arguments in placeholder order.
+////        String[] selectionArgs = {"0"};
+//        // Issue SQL statement.
+////        int deletedRows = db.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
+//
+//        db.delete(PetEntry.TABLE_NAME, null, null);
+//
+//        Log.i(LOG_TAG, "deletePet: " + db.toString());
+//
+//    }
 
-        // Define 'where' part of query.
-        String selection = PetEntry._ID + " >0";
-        // Specify arguments in placeholder order.
-//        String[] selectionArgs = {"0"};
-        // Issue SQL statement.
-//        int deletedRows = db.delete(PetEntry.TABLE_NAME, selection, selectionArgs);
 
-        db.delete(PetEntry.TABLE_NAME, null, null);
+    /**
+     * Helper method to delete all pets in the database.
+     */
+    private void deleteAllPets() {
+        // TODO: Implement this method
 
-        Log.i(LOG_TAG, "deletePet: " + db.toString());
+        // Only perform the delete if this is an existing pet.
+
+        // 我的方式
+//        if (PetEntry.CONTENT_URI != null) {
+//            // Call the ContentResolver to delete the pet at the given content URI.
+//            // Pass in null for the selection and selection args because the mCurrentPetUri
+//            // content URI already identifies the pet that we want.
+//            int rowsDeleted = getContentResolver().delete(PetEntry.CONTENT_URI, null, null);
+//
+//            // Show a toast message depending on whether or not the delete was successful.
+//            if (rowsDeleted == 0) {
+//                // If no rows were deleted, then there was an error with the delete.
+//                Toast.makeText(this, getString(R.string.editor_delete_pet_failed),
+//                        Toast.LENGTH_SHORT).show();
+//            } else {
+//                // Otherwise, the delete was successful and we can display a toast.
+//                Toast.makeText(this, getString(R.string.editor_delete_pet_successful),
+//                        Toast.LENGTH_SHORT).show();
+//            }
+//        }
+
+
+        int rowsDeleted = getContentResolver().delete(PetEntry.CONTENT_URI, null, null);
+        Log.v("CatalogActivity", rowsDeleted + " rows deleted from pet database");
+
     }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -299,9 +336,8 @@ public class CatalogActivity extends AppCompatActivity implements LoaderManager.
                 return true;
             // Respond to a click on the "Delete all entries" menu option
             case R.id.action_delete_all_entries:
-                // Do nothing for now
-                deletePet();
-//                displayDatabaseInfo();
+                // 删除所有宠物
+                deleteAllPets();
                 return true;
         }
         return super.onOptionsItemSelected(item);
